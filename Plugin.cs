@@ -95,6 +95,24 @@ public class Plugin : BasePlugin
         }
     }
 
+    public static class SslDiagnosticsPatch
+    {
+        [HarmonyPatch(typeof(Il2CppSystem.Net.Security.SslStream), "AuthenticateAsClient", new System.Type[] { typeof(string) })]
+        [HarmonyPrefix]
+        private static void Prefix(string targetHost)
+        {
+            System.Console.WriteLine("[Mocha2021Patch][SSL-DEBUG] AuthenticateAsClient targetHost = " + targetHost);
+        }
+
+        [HarmonyPatch(typeof(Il2CppSystem.Net.Security.SslStream), "AuthenticateAsClientAsync",
+            new System.Type[] { typeof(string), typeof(Il2CppSystem.Security.Cryptography.X509Certificates.X509CertificateCollection), typeof(Il2CppSystem.Security.Authentication.SslProtocols), typeof(bool) })]
+        [HarmonyPrefix]
+        private static void PrefixAsync(string targetHost)
+        {
+            System.Console.WriteLine("[Mocha2021Patch][SSL-DEBUG] AuthenticateAsClientAsync targetHost = " + targetHost);
+        }
+    }
+
     public static class TlsPatch
     {
         [HarmonyPatch(typeof(Il2CppSystem.Net.ServicePointManager), "get_SecurityProtocol")]
