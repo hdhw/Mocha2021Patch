@@ -31,6 +31,17 @@ public class Plugin : BasePlugin
         {
             Log.LogError("Mocha2021Patch: auth diagnostics patch FAILED: " + e);
         }
+
+        try
+        {
+            var tlsHarmony = new Harmony("Mocha2021Patch.Tls");
+            tlsHarmony.PatchAll(typeof(TlsPatch));
+            Log.LogInfo("Mocha2021Patch: TLS 1.2 patch applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: TLS 1.2 patch FAILED: " + e);
+        }
     }
 
     public static class HttpRedirectPatch
@@ -70,6 +81,17 @@ public class Plugin : BasePlugin
         private static void Prefix(string EMNPHAPBBAH)
         {
             System.Console.WriteLine("[Mocha2021Patch][AUTH-DEBUG] OnCustomAuthenticationFailed message = " + EMNPHAPBBAH);
+        }
+    }
+
+    public static class TlsPatch
+    {
+        [HarmonyPatch(typeof(Il2CppSystem.Net.ServicePointManager), "get_SecurityProtocol")]
+        [HarmonyPrefix]
+        private static bool Prefix(ref Il2CppSystem.Net.SecurityProtocolType __result)
+        {
+            __result = Il2CppSystem.Net.SecurityProtocolType.Tls12;
+            return false;
         }
     }
 }
