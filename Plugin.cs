@@ -42,6 +42,17 @@ public class Plugin : BasePlugin
         {
             Log.LogError("Mocha2021Patch: TLS 1.2 patch FAILED: " + e);
         }
+
+        try
+        {
+            var webRequestHarmony = new Harmony("Mocha2021Patch.WebRequest");
+            webRequestHarmony.PatchAll(typeof(WebRequestRedirectPatch));
+            Log.LogInfo("Mocha2021Patch: WebRequest.Create redirect patch applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: WebRequest.Create redirect patch FAILED: " + e);
+        }
     }
 
     public static class HttpRedirectPatch
@@ -92,6 +103,36 @@ public class Plugin : BasePlugin
         {
             __result = Il2CppSystem.Net.SecurityProtocolType.Tls12;
             return false;
+        }
+    }
+
+    public static class WebRequestRedirectPatch
+    {
+        [HarmonyPatch(typeof(Il2CppSystem.Net.WebRequest), "Create", new System.Type[] { typeof(string) })]
+        [HarmonyPrefix]
+        private static bool Prefix(ref string requestUriString, ref Il2CppSystem.Net.WebRequest __result)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(requestUriString)) return true;
+                var parsed = new System.Uri(requestUriString);
+                var host = parsed.Host;
+
+                var isTarget = host.EndsWith("rec.net", System.StringComparison.OrdinalIgnoreCase)
+                    || host.EndsWith("recroom.com", System.StringComparison.OrdinalIgnoreCase)
+                    || host.EndsWith("exitgames.com", System.StringComparison.OrdinalIgnoreCase);
+                if (!isTarget) return true;
+
+                var newUrl = "http://localhost:5000" + parsed.PathAndQuery;
+                System.Console.WriteLine("[Mocha2021Patch] WebRequest.Create redirected " + requestUriString + " -> " + newUrl);
+                requestUriString = newUrl;
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine("[Mocha2021Patch] WebRequest.Create redirect failed: " + e);
+                return true;
+            }
         }
     }
 }
