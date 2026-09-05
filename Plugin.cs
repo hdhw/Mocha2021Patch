@@ -3,6 +3,7 @@ using BepInEx.Unity.IL2CPP;
 using BestHTTP;
 using HarmonyLib;
 using Photon.Pun;
+using Photon.Realtime;
 using UnityEngine;
 
 namespace Mocha2021Patch;
@@ -36,6 +37,17 @@ public class Plugin : BasePlugin
         {
             Log.LogError("Mocha2021Patch: Photon settings patch FAILED: " + e);
         }
+
+        try
+        {
+            var punHarmony = new Harmony("Mocha2021Patch.PUNNetworkManager");
+            punHarmony.PatchAll(typeof(PunNetworkManagerPatch));
+            Log.LogInfo("Mocha2021Patch: PUNNetworkManager.FJOLIPKKIBE patch applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: PUNNetworkManager.FJOLIPKKIBE patch FAILED: " + e);
+        }
     }
 
     public static class HttpRedirectPatch
@@ -68,6 +80,32 @@ public class Plugin : BasePlugin
         }
     }
 
+    public static class PunNetworkManagerPatch
+    {
+        [HarmonyPatch(typeof(PUNNetworkManager), "FJOLIPKKIBE")]
+        [HarmonyPostfix]
+        private static void Postfix(ref AppSettings __result)
+        {
+            try
+            {
+                __result = new AppSettings
+                {
+                    AppIdRealtime = PhotonAppIdRealtime,
+                    AppIdVoice = PhotonAppIdVoice,
+                    Protocol = ExitGames.Client.Photon.ConnectionProtocol.WebSocketSecure,
+                    AppVersion = "1.0",
+                    FixedRegion = "us",
+                    UseNameServer = true,
+                };
+                System.Console.WriteLine("[Mocha2021Patch] overrode PUNNetworkManager.FJOLIPKKIBE result with patched AppSettings");
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine("[Mocha2021Patch] PUNNetworkManager patch failed: " + e);
+            }
+        }
+    }
+
     public static class PhotonSettingsPatch
     {
         private static bool _patched;
@@ -94,9 +132,9 @@ public class Plugin : BasePlugin
 
                 appSettings.AppIdRealtime = PhotonAppIdRealtime;
                 appSettings.AppIdVoice = PhotonAppIdVoice;
-                appSettings.Protocol = ExitGames.Client.Photon.ConnectionProtocol.Udp;
+                appSettings.Protocol = ExitGames.Client.Photon.ConnectionProtocol.WebSocketSecure;
                 _patched = true;
-                System.Console.WriteLine("[Mocha2021Patch] patched PhotonServerSettings AppIdRealtime/AppIdVoice/Protocol=Udp");
+                System.Console.WriteLine("[Mocha2021Patch] patched PhotonServerSettings AppIdRealtime/AppIdVoice/Protocol=WSS");
             }
             catch (System.Exception e)
             {
