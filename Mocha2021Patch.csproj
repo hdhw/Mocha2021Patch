@@ -39,6 +39,10 @@
       <HintPath>/home/isabelle/Downloads/2021-07-28T06-51-35Z/BepInEx/interop/PhotonRealtime.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Photon3Unity3D">
+      <HintPath>/home/isabelle/Downloads/2021-07-28T06-51-35Z/BepInEx/interop/Photon3Unity3D.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>/home/isabelle/Downloads/2021-07-28T06-51-35Z/BepInEx/interop/UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>

@@ -94,8 +94,9 @@ public class Plugin : BasePlugin
 
                 appSettings.AppIdRealtime = PhotonAppIdRealtime;
                 appSettings.AppIdVoice = PhotonAppIdVoice;
+                appSettings.Protocol = ExitGames.Client.Photon.ConnectionProtocol.Udp;
                 _patched = true;
-                System.Console.WriteLine("[Mocha2021Patch] patched PhotonServerSettings AppIdRealtime/AppIdVoice");
+                System.Console.WriteLine("[Mocha2021Patch] patched PhotonServerSettings AppIdRealtime/AppIdVoice/Protocol=Udp");
             }
             catch (System.Exception e)
             {
