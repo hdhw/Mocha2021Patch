@@ -45,6 +45,23 @@ public class Plugin : BasePlugin
         }
     }
 
+    internal static class DurableLog
+    {
+        private static readonly object Gate = new();
+
+        public static void Write(string line)
+        {
+            try
+            {
+                lock (Gate)
+                {
+                    System.IO.File.AppendAllText("mocha_debug.log", System.DateTime.Now.ToString("HH:mm:ss.fff") + " " + line + System.Environment.NewLine);
+                }
+            }
+            catch { }
+        }
+    }
+
     public static class HttpRedirectPatch
     {
         [HarmonyPatch(typeof(HTTPManager), "SendRequest", new System.Type[] { typeof(HTTPRequest) })]
@@ -81,7 +98,9 @@ public class Plugin : BasePlugin
         [HarmonyPrefix]
         private static void Prefix(string EMNPHAPBBAH)
         {
-            System.Console.WriteLine("[Mocha2021Patch][AUTH-DEBUG] OnCustomAuthenticationFailed message = " + EMNPHAPBBAH);
+            var line = "[AUTH-DEBUG] OnCustomAuthenticationFailed message = " + EMNPHAPBBAH;
+            System.Console.WriteLine("[Mocha2021Patch]" + line);
+            DurableLog.Write(line);
         }
     }
 
@@ -97,11 +116,14 @@ public class Plugin : BasePlugin
                 __instance.CustomCertificationValidator = null;
                 __instance.CustomClientCredentialsProvider = null;
                 __instance.CustomTLSServerNameList = null;
-                System.Console.WriteLine("[Mocha2021Patch][TLS] cleared cert validation on request: " + __instance.Uri.OriginalString);
+                var uri = __instance.Uri.OriginalString;
+                System.Console.WriteLine("[Mocha2021Patch][TLS] cleared cert validation on request: " + uri);
+                DurableLog.Write("[TLS-SEND] " + uri);
             }
             catch (System.Exception e)
             {
                 System.Console.WriteLine("[Mocha2021Patch][TLS] failed to clear cert validation: " + e);
+                DurableLog.Write("[TLS-SEND-ERROR] " + e);
             }
         }
 
@@ -109,6 +131,7 @@ public class Plugin : BasePlugin
         [HarmonyPrefix]
         private static bool PrefixNotify()
         {
+            DurableLog.Write("[TLS-NOTIFY] NotifyServerCertificate bypassed");
             return false;
         }
     }
