@@ -43,6 +43,17 @@ public class Plugin : BasePlugin
         {
             Log.LogError("Mocha2021Patch: BestHTTP TLS bypass patch FAILED: " + e);
         }
+
+        try
+        {
+            var monoTlsHarmony = new Harmony("Mocha2021Patch.MonoTlsBypass");
+            monoTlsHarmony.PatchAll(typeof(MonoTlsBypassPatch));
+            Log.LogInfo("Mocha2021Patch: Mono legacy HttpWebRequest TLS bypass patch applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: Mono legacy HttpWebRequest TLS bypass patch FAILED: " + e);
+        }
     }
 
     internal static class DurableLog
@@ -133,6 +144,32 @@ public class Plugin : BasePlugin
         {
             DurableLog.Write("[TLS-NOTIFY] NotifyServerCertificate bypassed");
             return false;
+        }
+    }
+
+    public static class MonoTlsBypassPatch
+    {
+        [HarmonyPatch(typeof(Il2CppSystem.Net.ServerCertValidationCallback), "Invoke")]
+        [HarmonyPrefix]
+        private static bool PrefixInvoke(ref bool __result)
+        {
+            __result = true;
+            DurableLog.Write("[MONO-TLS] ServerCertValidationCallback.Invoke bypassed -> true");
+            return false;
+        }
+
+        [HarmonyPatch(typeof(Il2CppSystem.Net.WebConnection), "CreateStream")]
+        [HarmonyPostfix]
+        private static void PostfixCreateStream(Il2CppSystem.Net.HttpWebRequest request, bool __result)
+        {
+            try
+            {
+                DurableLog.Write("[MONO-TLS] WebConnection.CreateStream(" + request.RequestUri.OriginalString + ") -> " + __result);
+            }
+            catch (System.Exception e)
+            {
+                DurableLog.Write("[MONO-TLS] CreateStream postfix logging failed: " + e);
+            }
         }
     }
 }
