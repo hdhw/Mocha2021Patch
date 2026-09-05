@@ -2,18 +2,12 @@ using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using BestHTTP;
 using HarmonyLib;
-using Photon.Pun;
-using Photon.Realtime;
-using UnityEngine;
 
 namespace Mocha2021Patch;
 
 [BepInPlugin("Mocha2021Patch", "Mocha2021 Server Redirect", "1.0.0")]
 public class Plugin : BasePlugin
 {
-    private const string PhotonAppIdRealtime = "7ff599b9-d7d4-4d49-989f-ea5aee49af99";
-    private const string PhotonAppIdVoice = "2d02323f-72c6-4301-9589-28b83e04d439";
-
     public override void Load()
     {
         try
@@ -27,27 +21,7 @@ public class Plugin : BasePlugin
             Log.LogError("Mocha2021Patch: HTTP redirect patch FAILED: " + e);
         }
 
-        try
-        {
-            var photonHarmony = new Harmony("Mocha2021Patch.Photon");
-            photonHarmony.PatchAll(typeof(PhotonSettingsPatch));
-            Log.LogInfo("Mocha2021Patch: Photon settings patch applied");
-        }
-        catch (System.Exception e)
-        {
-            Log.LogError("Mocha2021Patch: Photon settings patch FAILED: " + e);
-        }
-
-        try
-        {
-            var punHarmony = new Harmony("Mocha2021Patch.PUNNetworkManager");
-            punHarmony.PatchAll(typeof(PunNetworkManagerPatch));
-            Log.LogInfo("Mocha2021Patch: PUNNetworkManager.FJOLIPKKIBE patch applied");
-        }
-        catch (System.Exception e)
-        {
-            Log.LogError("Mocha2021Patch: PUNNetworkManager.FJOLIPKKIBE patch FAILED: " + e);
-        }
+        Log.LogInfo("Mocha2021Patch: Photon AppIDs are baked directly into resources.assets, no runtime patch needed");
     }
 
     public static class HttpRedirectPatch
@@ -76,69 +50,6 @@ public class Plugin : BasePlugin
             catch (System.Exception e)
             {
                 System.Console.WriteLine("[Mocha2021Patch] redirect failed: " + e);
-            }
-        }
-    }
-
-    public static class PunNetworkManagerPatch
-    {
-        [HarmonyPatch(typeof(PUNNetworkManager), "FJOLIPKKIBE")]
-        [HarmonyPostfix]
-        private static void Postfix(ref AppSettings __result)
-        {
-            try
-            {
-                __result = new AppSettings
-                {
-                    AppIdRealtime = PhotonAppIdRealtime,
-                    AppIdVoice = PhotonAppIdVoice,
-                    Protocol = ExitGames.Client.Photon.ConnectionProtocol.WebSocketSecure,
-                    AppVersion = "1.0",
-                    FixedRegion = "us",
-                    UseNameServer = true,
-                };
-                System.Console.WriteLine("[Mocha2021Patch] overrode PUNNetworkManager.FJOLIPKKIBE result with patched AppSettings");
-            }
-            catch (System.Exception e)
-            {
-                System.Console.WriteLine("[Mocha2021Patch] PUNNetworkManager patch failed: " + e);
-            }
-        }
-    }
-
-    public static class PhotonSettingsPatch
-    {
-        private static bool _patched;
-
-        [HarmonyPatch(typeof(Resources), "Load", new System.Type[] { typeof(string), typeof(Il2CppSystem.Type) })]
-        [HarmonyPostfix]
-        private static void TypedLoadPostfix(string path, ref UnityEngine.Object __result)
-        {
-            Apply(path, __result);
-        }
-
-        private static void Apply(string path, UnityEngine.Object result)
-        {
-            try
-            {
-                if (_patched) return;
-                if (path != "PhotonServerSettings" || result == null) return;
-
-                var settings = result.TryCast<ServerSettings>();
-                if (settings == null) return;
-
-                var appSettings = settings.AppSettings;
-                if (appSettings == null) return;
-
-                appSettings.AppIdRealtime = PhotonAppIdRealtime;
-                appSettings.AppIdVoice = PhotonAppIdVoice;
-                appSettings.Protocol = ExitGames.Client.Photon.ConnectionProtocol.WebSocketSecure;
-                _patched = true;
-                System.Console.WriteLine("[Mocha2021Patch] patched PhotonServerSettings AppIdRealtime/AppIdVoice/Protocol=WSS");
-            }
-            catch (System.Exception e)
-            {
-                System.Console.WriteLine("[Mocha2021Patch] photon settings patch failed: " + e);
             }
         }
     }
