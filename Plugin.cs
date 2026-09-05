@@ -2,6 +2,7 @@ using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using BestHTTP;
 using HarmonyLib;
+using Org.BouncyCastle.Crypto.Tls;
 
 namespace Mocha2021Patch;
 
@@ -34,24 +35,13 @@ public class Plugin : BasePlugin
 
         try
         {
-            var tlsHarmony = new Harmony("Mocha2021Patch.Tls");
-            tlsHarmony.PatchAll(typeof(TlsPatch));
-            Log.LogInfo("Mocha2021Patch: TLS 1.2 patch applied");
+            var tlsBypassHarmony = new Harmony("Mocha2021Patch.TlsBypass");
+            tlsBypassHarmony.PatchAll(typeof(BestHttpTlsBypassPatch));
+            Log.LogInfo("Mocha2021Patch: BestHTTP TLS bypass patch applied");
         }
         catch (System.Exception e)
         {
-            Log.LogError("Mocha2021Patch: TLS 1.2 patch FAILED: " + e);
-        }
-
-        try
-        {
-            var webRequestHarmony = new Harmony("Mocha2021Patch.WebRequest");
-            webRequestHarmony.PatchAll(typeof(WebRequestRedirectPatch));
-            Log.LogInfo("Mocha2021Patch: WebRequest.Create redirect patch applied");
-        }
-        catch (System.Exception e)
-        {
-            Log.LogError("Mocha2021Patch: WebRequest.Create redirect patch FAILED: " + e);
+            Log.LogError("Mocha2021Patch: BestHTTP TLS bypass patch FAILED: " + e);
         }
     }
 
@@ -95,62 +85,31 @@ public class Plugin : BasePlugin
         }
     }
 
-    public static class SslDiagnosticsPatch
+    public static class BestHttpTlsBypassPatch
     {
-        [HarmonyPatch(typeof(Il2CppSystem.Net.Security.SslStream), "AuthenticateAsClient", new System.Type[] { typeof(string) })]
+        [HarmonyPatch(typeof(HTTPRequest), "Send")]
         [HarmonyPrefix]
-        private static void Prefix(string targetHost)
-        {
-            System.Console.WriteLine("[Mocha2021Patch][SSL-DEBUG] AuthenticateAsClient targetHost = " + targetHost);
-        }
-
-        [HarmonyPatch(typeof(Il2CppSystem.Net.Security.SslStream), "AuthenticateAsClientAsync",
-            new System.Type[] { typeof(string), typeof(Il2CppSystem.Security.Cryptography.X509Certificates.X509CertificateCollection), typeof(Il2CppSystem.Security.Authentication.SslProtocols), typeof(bool) })]
-        [HarmonyPrefix]
-        private static void PrefixAsync(string targetHost)
-        {
-            System.Console.WriteLine("[Mocha2021Patch][SSL-DEBUG] AuthenticateAsClientAsync targetHost = " + targetHost);
-        }
-    }
-
-    public static class TlsPatch
-    {
-        [HarmonyPatch(typeof(Il2CppSystem.Net.ServicePointManager), "get_SecurityProtocol")]
-        [HarmonyPrefix]
-        private static bool Prefix(ref Il2CppSystem.Net.SecurityProtocolType __result)
-        {
-            __result = Il2CppSystem.Net.SecurityProtocolType.Tls12;
-            return false;
-        }
-    }
-
-    public static class WebRequestRedirectPatch
-    {
-        [HarmonyPatch(typeof(Il2CppSystem.Net.WebRequest), "Create", new System.Type[] { typeof(string) })]
-        [HarmonyPrefix]
-        private static bool Prefix(ref string requestUriString, ref Il2CppSystem.Net.WebRequest __result)
+        private static void Prefix(HTTPRequest __instance)
         {
             try
             {
-                if (string.IsNullOrEmpty(requestUriString)) return true;
-                var parsed = new System.Uri(requestUriString);
-                var host = parsed.Host;
-
-                var isTarget = host.EndsWith("rec.net", System.StringComparison.OrdinalIgnoreCase)
-                    || host.EndsWith("recroom.com", System.StringComparison.OrdinalIgnoreCase)
-                    || host.EndsWith("exitgames.com", System.StringComparison.OrdinalIgnoreCase);
-                if (!isTarget) return true;
-
-                var newUrl = "http://localhost:5000" + parsed.PathAndQuery;
-                System.Console.WriteLine("[Mocha2021Patch] WebRequest.Create redirected " + requestUriString + " -> " + newUrl);
-                requestUriString = newUrl;
-                return true;
+                __instance.CustomCertificateVerifyer = null;
+                __instance.CustomCertificationValidator = null;
+                __instance.CustomClientCredentialsProvider = null;
+                __instance.CustomTLSServerNameList = null;
+                System.Console.WriteLine("[Mocha2021Patch][TLS] cleared cert validation on request: " + __instance.Uri.OriginalString);
             }
             catch (System.Exception e)
             {
-                System.Console.WriteLine("[Mocha2021Patch] WebRequest.Create redirect failed: " + e);
-                return true;
+                System.Console.WriteLine("[Mocha2021Patch][TLS] failed to clear cert validation: " + e);
             }
+        }
+
+        [HarmonyPatch(typeof(LegacyTlsAuthentication), "NotifyServerCertificate")]
+        [HarmonyPrefix]
+        private static bool PrefixNotify()
+        {
+            return false;
         }
     }
 }
