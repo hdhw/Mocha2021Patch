@@ -21,7 +21,16 @@ public class Plugin : BasePlugin
             Log.LogError("Mocha2021Patch: HTTP redirect patch FAILED: " + e);
         }
 
-        Log.LogInfo("Mocha2021Patch: Photon AppIDs are baked directly into resources.assets, no runtime patch needed");
+        try
+        {
+            var diagHarmony = new Harmony("Mocha2021Patch.Diagnostics");
+            diagHarmony.PatchAll(typeof(AuthDiagnosticsPatch));
+            Log.LogInfo("Mocha2021Patch: auth diagnostics patch applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: auth diagnostics patch FAILED: " + e);
+        }
     }
 
     public static class HttpRedirectPatch
@@ -51,6 +60,16 @@ public class Plugin : BasePlugin
             {
                 System.Console.WriteLine("[Mocha2021Patch] redirect failed: " + e);
             }
+        }
+    }
+
+    public static class AuthDiagnosticsPatch
+    {
+        [HarmonyPatch(typeof(PUNNetworkManager), "OnCustomAuthenticationFailed")]
+        [HarmonyPrefix]
+        private static void Prefix(string EMNPHAPBBAH)
+        {
+            System.Console.WriteLine("[Mocha2021Patch][AUTH-DEBUG] OnCustomAuthenticationFailed message = " + EMNPHAPBBAH);
         }
     }
 }
