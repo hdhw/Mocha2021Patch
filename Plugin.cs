@@ -13,6 +13,17 @@ public class Plugin : BasePlugin
     {
         try
         {
+            System.Net.ServicePointManager.ServerCertificateValidationCallback = (sender, cert, chain, errors) => true;
+            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+            Log.LogInfo("Mocha2021Patch: real .NET ServicePointManager cert validation bypassed");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: real .NET ServicePointManager bypass FAILED: " + e);
+        }
+
+        try
+        {
             var httpHarmony = new Harmony("Mocha2021Patch.Http");
             httpHarmony.PatchAll(typeof(HttpRedirectPatch));
             Log.LogInfo("Mocha2021Patch: HTTP redirect patch applied");
@@ -42,6 +53,17 @@ public class Plugin : BasePlugin
         catch (System.Exception e)
         {
             Log.LogError("Mocha2021Patch: BestHTTP TLS bypass patch FAILED: " + e);
+        }
+
+        try
+        {
+            var realNetHarmony = new Harmony("Mocha2021Patch.RealNetDiagnostics");
+            realNetHarmony.PatchAll(typeof(RealDotNetTlsDiagnosticsPatch));
+            Log.LogInfo("Mocha2021Patch: real .NET HttpWebRequest diagnostics patch applied");
+        }
+        catch (System.Exception e)
+        {
+            Log.LogError("Mocha2021Patch: real .NET HttpWebRequest diagnostics patch FAILED: " + e);
         }
 
         try
@@ -100,6 +122,39 @@ public class Plugin : BasePlugin
             {
                 System.Console.WriteLine("[Mocha2021Patch] redirect failed: " + e);
             }
+        }
+    }
+
+    public static class RealDotNetTlsDiagnosticsPatch
+    {
+        [HarmonyPatch(typeof(System.Net.HttpWebRequest), "GetResponse")]
+        [HarmonyPrefix]
+        private static void Prefix(System.Net.HttpWebRequest __instance)
+        {
+            DurableLog.Write("[REAL-NET] HttpWebRequest.GetResponse -> " + __instance.RequestUri);
+        }
+
+        [HarmonyPatch(typeof(System.Net.HttpWebRequest), "GetResponse")]
+        [HarmonyFinalizer]
+        private static System.Exception Finalizer(System.Exception __exception, System.Net.HttpWebRequest __instance)
+        {
+            if (__exception != null)
+                DurableLog.Write("[REAL-NET-ERROR] HttpWebRequest.GetResponse(" + __instance.RequestUri + ") threw: " + __exception);
+            return __exception;
+        }
+
+        [HarmonyPatch(typeof(System.Net.WebRequest), "Create", new System.Type[] { typeof(string) })]
+        [HarmonyPrefix]
+        private static void PrefixCreate(string requestUriString)
+        {
+            DurableLog.Write("[REAL-NET] WebRequest.Create(string) -> " + requestUriString);
+        }
+
+        [HarmonyPatch(typeof(System.Net.WebRequest), "Create", new System.Type[] { typeof(System.Uri) })]
+        [HarmonyPrefix]
+        private static void PrefixCreateUri(System.Uri requestUri)
+        {
+            DurableLog.Write("[REAL-NET] WebRequest.Create(Uri) -> " + requestUri);
         }
     }
 
